@@ -1,1 +1,318 @@
 
+{% extends "base.html" %}
+{% block title %}bot{% endblock %}
+{% block content %}
+<article>
+    <header>
+        <h1>welcome to <em>rob's</em> omegle bot.</h1>
+        <aside>you have sold your soul to rob.</aside>
+    </header>
+    <h2>seriously, what the fuck else do you want?</h2>
+    <p>you keep forgetting. let me describe the perfect-ass omegle bot:</p>
+    <ul>
+        <li>only needs a start / stop button</li>
+        <li>allows you to add your own proxies</li>
+        <li>your own 2captcha api key</li>
+        <li>easily load in full conversations with multiple messages</li>
+        <li>replace values in your messages with set variables like your snapchat username</li>
+        <li>fast af boiiiiii</li>
+    </ul>
+    <p>you do it every day. you take <a title="TempleOS" href="https://templeos.org/">a fucking masterpiece</a> and incrementally <a href="https://botsociety.io/blog/2018/05/omegle-bot/" title="trash">ruin it</a>
+        for the sake of design. let me remind you: design is <dfn title="design">to plan and make something for a specific purpose</dfn>.
+        the most basic purpose of an omegle bot is to bot omegle. yet you keep doing shit that gets in the way.</p>
+    <h2 id="grey-text">system status: <span id="system-status"></span></h2>
+    <button id="change_system_status_button" onclick="change_status()">change status</button>
+    <h2 id="grey-text">2captcha api key (leave blank for auto-solve)</h2>
+    <input type="text" id="captcha-key" name="captcha-key" placeholder="your 2captcha api key...">
+    <button onclick="save_captcha_key()">save</button>
+    <h2 id="grey-text">proxy</h2>
+    <input type="text" id="proxy-key" name="proxy-key" placeholder="https--ip--port--username--password">
+    <button onclick="save_proxy()">save</button>
+    <div id="conversation-container"></div>
+    <div id="replace-container"></div>
+    <div id="interests-container"></div>
+{% endblock %}
+{% block scripts %}
+<script>
+    let status = -1;
+    let conversation;
+    let replace;
+    let interests;
+
+    Element.prototype.remove = function() { this.parentElement.removeChild(this); }
+    NodeList.prototype.remove = HTMLCollection.prototype.remove = function() { for (var i = this.length - 1; i >= 0; i--) { if (this[i] && this[i].parentElement) { this[i].parentElement.removeChild(this[i]); } } }
+
+    function fetch_conversation() {
+        if(document.getElementById("data_table")) { document.getElementById("data_table").remove(); }
+
+        let http = new XMLHttpRequest();
+        http.open("GET", "/api/conversation", true);
+
+        http.setRequestHeader("Content-type", "application/json");
+        http.responseType = "json";
+        http.onreadystatechange = function() {
+            if (http.readyState == 4 && http.status == 200) {
+                conversation = http.response["data"]["key"];
+                let table = document.createElement("div");
+                table.id = "data_table";
+                table.innerHTML = `
+                <h2 id="grey-text">conversation</h2>
+                <ul id="element_list">`;
+                for (var it in conversation) { table.innerHTML += `<li>${conversation[it]} &mdash;
+                    <button id="delete_account_button" onclick="delete_message(${it})">delete</button>
+                    </li>`; }
+                table.innerHTML += `
+                    <li>
+                        <input type="text" id="add_message" name="add_message" placeholder="Your message here...">
+                        <button id="add_message_button" onclick="add_message()">add message</button>
+                    </li>
+                </ul>`;
+                document.getElementById("conversation-container").append(table);
+            }
+        }
+        http.send('');
+    }
+
+    function delete_message(pos) {
+        conversation.splice(pos, 1);
+        let json_val = "[";
+        for(i in conversation) { json_val += "\"" + conversation[i] + "\", "; }
+        if (json_val.length >= 3) { json_val = json_val.slice(0, -2);}
+        json_val += "]";
+
+        let http = new XMLHttpRequest();
+        http.open('POST', "/api/conversation", true);
+
+        http.setRequestHeader('Content-type', 'application/json');
+        http.responseType = 'json';
+        http.onreadystatechange = function() { if (http.readyState == 4 && http.status == 200) { fetch_conversation(); } };
+        http.send(json_val);
+    }
+
+    function add_message() {
+        let val = document.getElementById("add_message").value;
+        if (val == "") { return; }
+        conversation.push(val);
+        let json_val = "[";
+        for(i in conversation) { json_val += "\"" + conversation[i] + "\", "; }
+        json_val = json_val.slice(0, -2);
+        json_val += "]";
+
+        let http = new XMLHttpRequest();
+        http.open('POST', "/api/conversation", true);
+
+        http.setRequestHeader('Content-type', 'application/json');
+        http.responseType = 'json';
+        http.onreadystatechange = function() { if (http.readyState == 4 && http.status == 200) { fetch_conversation(); } };
+        http.send(json_val);
+    }
+
+    function fetch_replace() {
+        if(document.getElementById("replace_table")) { document.getElementById("replace_table").remove(); }
+
+        let http = new XMLHttpRequest();
+        http.open("GET", "/api/replace", true);
+
+        http.setRequestHeader("Content-type", "application/json");
+        http.responseType = "json";
+        http.onreadystatechange = function() {
+            if (http.readyState == 4 && http.status == 200) {
+                replace = http.response["data"]["key"];
+                let table = document.createElement("div");
+                table.id = "replace_table";
+                table.innerHTML = `
+                <h2 id="grey-text">replacements</h2>
+                <ul id="element_list">`;
+                for (var it in replace) { table.innerHTML += `<li>${replace[it]["key"]} &mdash; ${replace[it]["val"]}
+                    <button id="delete_account_button" onclick="delete_replace(${it})">delete</button>
+                    </li>`; }
+                table.innerHTML += `
+                    <li>
+                        <input type="text" id="add_replace_key" name="add_replace_key" placeholder="Key...">
+                        <input type="text" id="add_replace_val" name="add_replace_val" placeholder="Value...">
+                        <button id="add_replace_button" onclick="add_replace()">add replacement</button>
+                    </li>
+                </ul>`;
+                document.getElementById("replace-container").append(table);
+            }
+        }
+        http.send('');
+    }
+    function delete_replace(pos) {
+        replace.splice(pos, 1);
+        let json_val = "[";
+        for(i in replace) { json_val += JSON.stringify(replace[i]) + ", "; }
+        if (json_val.length >= 3) { json_val = json_val.slice(0, -2);}
+        json_val += "]";
+
+        let http = new XMLHttpRequest();
+        http.open('POST', "/api/replace", true);
+
+        http.setRequestHeader('Content-type', 'application/json');
+        http.responseType = 'json';
+        http.onreadystatechange = function() { if (http.readyState == 4 && http.status == 200) { fetch_replace(); } };
+        http.send(json_val);
+    }
+    function add_replace() {
+        let key = document.getElementById("add_replace_key").value;
+        let val = document.getElementById("add_replace_val").value;
+        if (val == "" || key == "") { return; }
+        replace.push({"key": key, "val": val});
+        let json_val = "[";
+        for(i in replace) { json_val += JSON.stringify(replace[i]) + ", "; }
+        json_val = json_val.slice(0, -2);
+        json_val += "]";
+
+        let http = new XMLHttpRequest();
+        http.open('POST', "/api/replace", true);
+
+        http.setRequestHeader('Content-type', 'application/json');
+        http.responseType = 'json';
+        http.onreadystatechange = function() { if (http.readyState == 4 && http.status == 200) { fetch_replace(); } };
+        http.send(json_val);
+    }
+    function fetch_interests() {
+        if(document.getElementById("interests_table")) { document.getElementById("interests_table").remove(); }
+
+        let http = new XMLHttpRequest();
+        http.open("GET", "/api/interests", true);
+
+        http.setRequestHeader("Content-type", "application/json");
+        http.responseType = "json";
+        http.onreadystatechange = function() {
+            if (http.readyState == 4 && http.status == 200) {
+                interests = http.response["data"]["key"];
+                let table = document.createElement("div");
+                table.id = "interests_table";
+                table.innerHTML = `
+                <h2 id="grey-text">interests</h2>
+                <ul id="element_list">`;
+                for (var it in interests) { table.innerHTML += `<li>${interests[it]}
+                    <button id="delete_interests_button" onclick="delete_interests(${it})">delete</button>
+                    </li>`; }
+                table.innerHTML += `
+                    <li>
+                        <input type="text" id="add_interests" name="add_interests" placeholder="Interest...">
+                        <button id="add_interest_button" onclick="add_interests()">add interest</button>
+                    </li>
+                </ul>`;
+                document.getElementById("interests-container").append(table);
+            }
+        }
+        http.send('');
+    }
+    function delete_interests(pos) {
+        interests.splice(pos, 1);
+        let json_val = "[";
+        for(i in interests) { json_val += "\"" + interests[i] + "\", "; }
+        if (json_val.length >= 3) { json_val = json_val.slice(0, -2);}
+        json_val += "]";
+
+        let http = new XMLHttpRequest();
+        http.open('POST', "/api/interests", true);
+
+        http.setRequestHeader('Content-type', 'application/json');
+        http.responseType = 'json';
+        http.onreadystatechange = function() { if (http.readyState == 4 && http.status == 200) { fetch_interests(); } };
+        http.send(json_val);
+    }
+    function add_interests() {
+        let val = document.getElementById("add_interests").value;
+        if (val == "") { return; }
+        interests.push(val);
+        let json_val = "[";
+        for(i in interests) { json_val += "\"" + interests[i] + "\", "; }
+        json_val = json_val.slice(0, -2);
+        json_val += "]";
+
+        let http = new XMLHttpRequest();
+        http.open('POST', "/api/interests", true);
+
+        http.setRequestHeader('Content-type', 'application/json');
+        http.responseType = 'json';
+        http.onreadystatechange = function() { if (http.readyState == 4 && http.status == 200) { fetch_interests(); } };
+        http.send(json_val);
+    }
+    function fetch_status() {
+        let http = new XMLHttpRequest();
+        http.open('GET', "/api/status", true);
+
+        http.setRequestHeader('Content-type', 'application/json');
+        http.responseType = 'json';
+        http.onreadystatechange = function() {
+            if (http.readyState == 4 && http.status == 200) {
+                let result_text = "error (pm rob)";
+                let result_color = "red";
+                let button_text = "change status (restart)";
+                status = http.response["data"]["status"];
+                if(http.response["data"]["status"] == 0) { result_text = "stopped"; result_color = "blue"; button_text = "change status (start)"; }
+                else if(http.response["data"]["status"] == 1) { result_text = "running"; result_color = "green"; button_text = "change status (stop)"; }
+                document.getElementById("system-status").style["color"] = result_color;
+                document.getElementById("system-status").innerHTML = result_text;
+                document.getElementById("change_system_status_button").innerHTML = button_text;
+            }
+        };
+        http.send('');
+    }
+    function change_status() {
+        let new_status = 1;
+        if (status == 1) { new_status = 0; }
+
+        let http = new XMLHttpRequest();
+        http.open('POST', "/api/status", true);
+
+        http.setRequestHeader('Content-type', 'application/json');
+        http.responseType = 'json';
+        http.onreadystatechange = function() { if (http.readyState == 4 && http.status == 200) { fetch_status(); } };
+        http.send(new_status);
+    }
+    function fetch_captcha_key() {
+        let http = new XMLHttpRequest();
+        http.open('GET', "/api/captchakey", true);
+
+        http.setRequestHeader('Content-type', 'application/json');
+        http.responseType = 'json';
+        http.onreadystatechange = function() { if (http.readyState == 4 && http.status == 200) { document.getElementById("captcha-key").value = http.response["data"]["key"]; } };
+        http.send('');
+    }
+    function save_captcha_key() {
+        let http = new XMLHttpRequest();
+        http.open('POST', "/api/captchakey", true);
+
+        http.setRequestHeader('Content-type', 'application/json');
+        http.responseType = 'json';
+        http.onreadystatechange = function() { if (http.readyState == 4 && http.status == 200) { fetch_captcha_key(); } };
+        http.send(document.getElementById("captcha-key").value);
+    }
+
+    function fetch_proxy() {
+        let http = new XMLHttpRequest();
+        http.open('GET', "/api/proxy", true);
+
+        http.setRequestHeader('Content-type', 'application/json');
+        http.responseType = 'json';
+        http.onreadystatechange = function() { if (http.readyState == 4 && http.status == 200) { document.getElementById("proxy-key").value = http.response["data"]["key"]; } };
+        http.send('');
+    }
+
+    function save_proxy() {
+        let http = new XMLHttpRequest();
+        http.open('POST', "/api/proxy", true);
+
+        http.setRequestHeader('Content-type', 'application/json');
+        http.responseType = 'json';
+        http.onreadystatechange = function() { if (http.readyState == 4 && http.status == 200) { fetch_proxy(); } };
+        http.send(document.getElementById("proxy-key").value);
+    }
+
+    fetch_status();
+    fetch_captcha_key();
+    fetch_conversation();
+    fetch_replace();
+    fetch_interests();
+    fetch_proxy();
+    window.setInterval(function(){
+        fetch_status();
+    }, 1000);
+</script>
+{% endblock %}
