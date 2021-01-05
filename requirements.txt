@@ -1,0 +1,8 @@
+flask
+flask_sqlalchemy
+SQLAlchemy
+hashlib
+requests
+multiprocessing
+secrets
+logging
