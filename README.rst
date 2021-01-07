@@ -1,6 +1,8 @@
 omegle-bot
 =============
 
+EDIT: gotta use some sort of database client to add in empty JSON arrays for most vars, else it'll crash
+
 Big paste from https://github.com/coal0/python-omegle/
 
 Shitty bot with a shitty web interface around the Omegle API, allows proxies & uses the 2captcha API to solve captchas
