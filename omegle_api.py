@@ -30,7 +30,7 @@ class omegle_api():
             self.auth = HTTPProxyAuth(proxy[:proxy.find("--")], proxy[proxy.find("--") + 2:])
 
     def start(self):
-        response = requests.get(self._server_url + "start?caps=recaptcha2&rcs=1&firstevents=1&randid={}&lang={}&topics={}".format(self._random_id, self.language, json.dumps(self.interests)), proxies=self.proxies if hasattr(self, "proxies") else None, auth=self.auth if hasattr(self, "proxies") else None)
+        response = requests.get(self._server_url + "start?caps=recaptcha2,t&rcs=1&spid=&firstevents=1&randid={}&lang={}&topics={}".format(self._random_id, self.language, json.dumps(self.interests)), proxies=self.proxies if hasattr(self, "proxies") else None, auth=self.auth if hasattr(self, "proxies") else None)
 
         if response.status_code != 200:
             return None
