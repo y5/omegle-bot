@@ -4,5 +4,3 @@ SQLAlchemy
 hashlib
 requests
 multiprocessing
-secrets
-logging
